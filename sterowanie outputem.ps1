@@ -14,7 +14,6 @@ function UsunRoot {
     $SSHStream.WriteLine(" ")
     Start-Sleep 4
     $output = $SSHStream.read()
-    Write-Output("$output tu jest output")
     if($output -notlike "*(config)#*")
     {
         $SSHStream.WriteLine("conf t")
@@ -23,7 +22,7 @@ function UsunRoot {
         $SSHStream.WriteLine("no username root")
         Start-Sleep 4
         $output = $SSHStream.read()
-        Write-Host($output)
+        #Write-Host($output)
         if ($output -like "*This operation will remove all username*")
             {
                 $SSHStream.WriteLine("y")
@@ -35,7 +34,7 @@ function UsunRoot {
         $SSHStream.WriteLine("sh run | i username root")
         Start-Sleep 2
         $output = $SSHStream.read()
-        Write-Host($output)
+        #Write-Host($output)
         if ($output -like "*username root privilege 15 secret*")
             {
                 Write-Host "Usuniecie roota nie powiodło się!"
@@ -95,34 +94,40 @@ function New-Maadmin
 
 
 # lista adresow IP
-$ipStart = 131
-$ipEnd = 131
-$ipBase = "10.207.96."
+
+$ipStart = Read-Host "Podaj poczatek zakresu IP"
+$ipEnd = Read-Host "Podaj koniec zakresu IP"
+$ipBase = Read-Host "Podaj podsiec"
+
+if ($ipBase[-1] -ne ".") {
+    $ipBase = $ipBase + "."
+    <# Action to perform if the condition is true #>
+}
 
 # Set Credentials
 if ( -not $mycreds) {
-$mycreds = Get-Credential
+$mycreds = Get-Credential -UserName root -Message "Podaj hasło roota"
+$haslo = $mycreds.GetNetworkCredential().Password
+$mycreds2 = New-Object System.Management.Automation.PSCredential -ArgumentList "maadmin", (ConvertTo-SecureString -AsPlainText $haslo -Force)
 }
 
 foreach ($i in $ipStart..$ipEnd) {
     $ip = $ipBase + $i
     # Ping the IP address
     $pingStatus = Test-Connection -ComputerName $ip -Count 1 -Quiet
+    $poswiadczenia = $mycreds
     if ($pingStatus) {
         # Build SSH session
         $sessionCreated = $false
         while (-not $sessionCreated) {
             try {
-                New-SSHSession $ip -Port 22 -Credential $mycreds -ErrorAction Stop -AcceptKey
+                New-SSHSession $ip -Port 22 -Credential $poswiadczenia -ErrorAction Stop -AcceptKey
                 $sessionCreated = $true
             } catch { 
                 Write-Host "Blad: $_"
-                if ($_.Exception.Message.Contains("Permission denied (keyboard-interactive)")) {
-                    Write-Host "Bledne poswiadczenia sprobuj ponownie."
-                    $mycreds = Get-Credential
-                } elseif ($_.Exception.Message.Contains("An established connection was aborted by the server.")) {
-                    Write-Host "Bledne poswiadczenia sprobuj ponownie."
-                    $mycreds = Get-Credential
+                if ($_.Exception.Message.Contains("Permission denied (keyboard-interactive)") -or $_.Exception.Message.Contains("An established connection was aborted by the server.")) {
+                    Write-Host "Poswiadczenia root niepoprawne sprawdzam maadmin."
+                    $poswiadczenia = $mycreds2
                 } else {
                     throw $_
                 }
