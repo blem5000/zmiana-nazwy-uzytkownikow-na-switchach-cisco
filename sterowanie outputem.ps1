@@ -16,21 +16,13 @@ function UsunRoot {
     $output = $SSHStream.read()
     if($output -notlike "*(config)#*")
     {
-        $SSHStream.WriteLine("sh run | i username")
-        Start-Sleep 2
-        $output = $SSHStream.read()
-        Write-Host($output)
-        if ($output -notlike "*username maadmin*")
-        {
-            Write-Host "Nie ma uzytkownika maadmin"
-            break
-        }
         $SSHStream.WriteLine("conf t")
         Start-Sleep 2
         Write-Host "Usuwam uzytkownika root"
         $SSHStream.WriteLine("no username root")
         Start-Sleep 4
         $output = $SSHStream.read()
+        #Write-Host($output)
         if ($output -like "*This operation will remove all username*")
             {
                 $SSHStream.WriteLine("y")
@@ -41,6 +33,7 @@ function UsunRoot {
         $SSHStream.WriteLine("sh run | i username root")
         Start-Sleep 2
         $output = $SSHStream.read()
+        #Write-Host($output)
         if ($output -like "*username root privilege 15 secret*")
             {
                 Write-Host "Usuniecie roota nie powiodło się!"
@@ -73,27 +66,30 @@ function New-Maadmin
                             Write-Host "Switch nie obsluguje secret 9, spróbuję ze starszym szyfrowaniem"
                             $SSHStream.WriteLine('username maadmin privilege 15 secret 5 $1$CBjj$ace0Czs0eP5cWKCfc/bMj.')
                             Start-Sleep 2
-                    }
-                            $SSHStream.WriteLine("do sh run | i username maadmin")
+                            $SSHStream.WriteLine("do sh run | username maadmin")
                             Start-Sleep 3
                             $output = $SSHStream.read() 
                             if($output -like "*username maadmin privilege 15 secret*"){
                                 $SSHStream.WriteLine("end")
-                                Write-Host "Usuwam uzytkownika root"
                                 UsunRoot
                                   
                             }
 
                             else {
                                 Write-Host "Blad maadmin nie zostal stworzony!"
-                                break
-                            }                                                  
+                                
+                            } 
+                                                       
+                    }
                     
-                    
-                    if($output -like "*username maadmin privilege 15 secret 9*") {
+                    elseif($output -like "*username maadmin privilege 15 secret 9*") {
                         $SSHStream.WriteLine("end")
-                        Write-Host "Usuwam uzytkownika root"
                         UsunRoot
+                    }
+                    else {
+                        {<# Akcja gdy nie udaje sie stworzyc maadmin #>}
+                        Write-Host "Blad maadmin nie zostal stworzony!"
+                        Break
                     }
 }
 
